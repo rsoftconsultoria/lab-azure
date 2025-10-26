@@ -1,8 +1,8 @@
 # lab-azure-claranet
 
-Guia do Lab – Infra Azure (Ubuntu + Azure CLI)
+# Guia do Lab – Infra Azure (Ubuntu + Azure CLI)
 
-Escopo coberto (concluído com sucesso):
+# Escopo coberto (concluído com sucesso):
 
 1. Preparar o Ubuntu e o Azure CLI
 2. Rede (VNet, Subnets, NSG)
