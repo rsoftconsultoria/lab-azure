@@ -16,7 +16,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     concurrency:
-      group: webapp-${{ github.ref_name }}   # 'env' não é permitido aqui; use 'github.*'
+      group: webapp-${{ github.ref_name }}
       cancel-in-progress: true
 
     steps:
