@@ -12,13 +12,13 @@
 - **6.2** Runbooks (`Stop‑Lab` / `Start‑Lab`) – **PowerShell** + teste on‑demand  
 - **6.3** Schedules (Seg–Sex **08:00/19:00**, fuso São Paulo) + vínculo aos runbooks
 
-> **Nota**: Evitamos a **série B** (ex.: B2s). Para a VM usamos **Standard_D2as_v5** (2 vCPU / 8 GiB), opção econômica e amplamente disponível.
+> **Nota**: Evitei a **série B** (ex.: B2s) pois foi descontinuado no catalogo de instâncias na Microsoft. Para a VM utilizei **Standard_D2as_v5** (2 vCPU / 8 GiB), opção econômica e amplamente disponível.
 
 ---
 
 ## 0) Convenções e Variáveis (definir 1x por sessão)
 
-> Execute no **seu Ubuntu** antes de começar (ou sempre que abrir um novo terminal):
+> Execute no **TERMINAL UBUNTU- USEI UMA VM criada no vSphere** antes de começar (ou sempre que abrir um novo terminal):
 
 ```bash
 # Identidade do lab
