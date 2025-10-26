@@ -1,30 +1,31 @@
-name: Deploy WebApp (Azure App Service Linux)
+name: CI: GitHub Actions deploy to Azure Web App + smoke tests
 
 on:
   push:
-    branches: [ "main" ]          # ajuste se sua default branch for "master"
+    branches: [ "main" ]             # ajuste se sua default branch for "master"
     paths:
       - "app/**"
       - ".github/workflows/deploy-webapp.yml"
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: app-lab001   # <<< AJUSTE para o seu App Service
+  AZURE_WEBAPP_NAME: app-lab001      # <<< AJUSTE para o seu App Service
   PACKAGE_PATH: app
-
-concurrency:
-  group: webapp-${{ env.AZURE_WEBAPP_NAME }}
-  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: webapp-${{ github.ref_name }}   # 'env' não é permitido aqui; use 'github.*'
+      cancel-in-progress: true
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Zip artifact
         run: |
+          rm -f app.zip
           cd "$PACKAGE_PATH"
           zip -r ../app.zip .
 
@@ -35,15 +36,19 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: app.zip
 
+      - name: Warm-up
+        run: sleep 15
+
       - name: Smoke test - homepage
         shell: bash
         run: |
           APP_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
           echo "Testing $APP_URL"
           for i in {1..30}; do
-            BODY=$(curl -fsS "$APP_URL" || true)
-            echo "$BODY" | head -c 200
-            if echo "$BODY" | grep -q "Hello Frontend!"; then
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL")
+            BODY=$(curl -s "$APP_URL")
+            echo "HTTP $STATUS: $(echo "$BODY" | head -c 200)"
+            if [ "$STATUS" -eq 200 ] && echo "$BODY" | grep -q "Hello Frontend!"; then
               echo "OK: Home responded"
               exit 0
             fi
@@ -57,12 +62,13 @@ jobs:
           APP_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/backend"
           echo "Testing $APP_URL"
           for i in {1..30}; do
-            BODY=$(curl -fsS "$APP_URL" || true)
-            echo "$BODY" | head -c 200
-            if echo "$BODY" | grep -q "Backend says:"; then
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL")
+            BODY=$(curl -s "$APP_URL")
+            echo "HTTP $STATUS: $(echo "$BODY" | head -c 200)"
+            if [ "$STATUS" -eq 200 ] && echo "$BODY" | grep -q "Backend says:"; then
               echo "OK: Backend responded"
               exit 0
             fi
             sleep 5
           done
-          echo "Backend did not respond in time"; exit 1
+          echo "/backend did not respond in time"; exit 1
