@@ -1,0 +1,68 @@
+name: Deploy WebApp (Azure App Service Linux)
+
+on:
+  push:
+    branches: [ "main" ]          # ajuste se sua default branch for "master"
+    paths:
+      - "app/**"
+      - ".github/workflows/deploy-webapp.yml"
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: app-lab001   # <<< AJUSTE para o seu App Service
+  PACKAGE_PATH: app
+
+concurrency:
+  group: webapp-${{ env.AZURE_WEBAPP_NAME }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Zip artifact
+        run: |
+          cd "$PACKAGE_PATH"
+          zip -r ../app.zip .
+
+      - name: Deploy to Azure WebApp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: app.zip
+
+      - name: Smoke test - homepage
+        shell: bash
+        run: |
+          APP_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          echo "Testing $APP_URL"
+          for i in {1..30}; do
+            BODY=$(curl -fsS "$APP_URL" || true)
+            echo "$BODY" | head -c 200
+            if echo "$BODY" | grep -q "Hello Frontend!"; then
+              echo "OK: Home responded"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Home did not respond in time"; exit 1
+
+      - name: Smoke test - /backend
+        shell: bash
+        run: |
+          APP_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/backend"
+          echo "Testing $APP_URL"
+          for i in {1..30}; do
+            BODY=$(curl -fsS "$APP_URL" || true)
+            echo "$BODY" | head -c 200
+            if echo "$BODY" | grep -q "Backend says:"; then
+              echo "OK: Backend responded"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Backend did not respond in time"; exit 1
