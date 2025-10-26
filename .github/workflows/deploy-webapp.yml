@@ -1,9 +1,8 @@
-name: "CI - Deploy to Azure Web App + smoke tests"
+name: Build & Deploy (Node in ./app → Azure Web App)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
     paths:
       - "app/**"
       - ".github/workflows/deploy-webapp.yml"
@@ -11,24 +10,43 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: app-lab001
-  PACKAGE_PATH: app
+  NODE_VERSION: "20"
+
+defaults:
+  run:
+    working-directory: app
 
 jobs:
-  build_and_deploy:
+  build_deploy:
     runs-on: ubuntu-latest
-    concurrency:
-      group: "webapp-${{ github.ref_name }}"
-      cancel-in-progress: true
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Zip artifact
+      - name: Ensure app directory exists
         run: |
-          rm -f app.zip
-          cd "$PACKAGE_PATH"
-          zip -r ../app.zip .
+          ls -la .
+          ls -la app || (echo "ERROR: Pasta 'app/' não existe no repo"; exit 1)
+          test -f package.json || (echo "ERROR: app/package.json não encontrado"; exit 1)
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Optional build & tests
+        run: |
+          npm run build --if-present
+          npm test --if-present
+
+      - name: Zip artifact
+        run: zip -r ../app.zip .
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
@@ -36,9 +54,6 @@ jobs:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: app.zip
-
-      - name: Warm-up
-        run: sleep 15
 
       - name: Smoke test - /
         shell: bash
@@ -49,13 +64,10 @@ jobs:
             CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
             BODY=$(curl -s "$URL" || true)
             echo "HTTP $CODE: $(echo "$BODY" | head -c 200)"
-            if [ "$CODE" -eq 200 ] && echo "$BODY" | grep -q "Hello Frontend!"; then
-              echo "OK: Home responded"
-              exit 0
-            fi
+            if [ "$CODE" -eq 200 ] && echo "$BODY" | grep -q "Hello Frontend!"; then exit 0; fi
             sleep 5
           done
-          echo "Home did not respond in time"; exit 1
+          exit 1
 
       - name: Smoke test - /backend
         shell: bash
@@ -66,10 +78,7 @@ jobs:
             CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
             BODY=$(curl -s "$URL" || true)
             echo "HTTP $CODE: $(echo "$BODY" | head -c 200)"
-            if [ "$CODE" -eq 200 ] && echo "$BODY" | grep -q "Backend says:"; then
-              echo "OK: Backend responded"
-              exit 0
-            fi
+            if [ "$CODE" -eq 200 ] && echo "$BODY" | grep -q "Backend says:"; then exit 0; fi
             sleep 5
           done
-          echo "/backend did not respond in time"; exit 1
+          exit 1
