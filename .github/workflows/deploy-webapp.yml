@@ -1,5 +1,4 @@
 name: CI: GitHub Actions deploy to Azure Web App + smoke tests
-
 on:
   push:
     branches: [ "main" ]             # ajuste se sua default branch for "master"
