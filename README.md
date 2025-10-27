@@ -1,5 +1,5 @@
 
-# Azure Lab – Infraestrutura com Ubuntu + Azure CLI (End-to-end)
+# Azure Lab – Infraestrutura com Ubuntu + Azure CLI (End-to-end) (Projeto ClaraNet)
 
 **Escopo coberto (concluído com sucesso):**
 - **1.** Preparar o Ubuntu e o Azure CLI  
@@ -530,71 +530,6 @@ pwsh -NoLogo -File /tmp/aa_schedules_v2.ps1
 ```bash
 az group delete -n "$RG" --yes --no-wait
 ```
-** 7.1) Opcional - via shell - destroy.sh
-
-'''
-#!/usr/bin/env bash
-set -euo pipefail
-
-SUBSCRIPTION_ID="<sua-sub>"
-RG="rg-lab001"
-VNET="vnet-lab001"; SN_APPSVC="appsvc-int"
-APP="app-lab001"; PLAN="asp-lab001"
-VM="vm-lab001"; AA="aa-lab001"; RSV="rsv-lab001"
-BASTION_NAME=""; PIP_BASTION=""
-
-az account set --subscription "$SUBSCRIPTION_ID"
-
-# 1) Automações
-az automation runbook start -g "$RG" --automation-account-name "$AA" \
-  --name "Stop-Lab" --parameters ResourceGroupName="$RG" >/dev/null 2>&1 || true
-for SCH in Start-Weekdays-0800 Stop-Weekdays-1900; do
-  az automation schedule delete -g "$RG" --automation-account-name "$AA" --name "$SCH" --yes >/dev/null 2>&1 || true
-done
-for RB in Start-Lab Stop-Lab; do
-  az automation runbook delete -g "$RG" --automation-account-name "$AA" --name "$RB" --yes >/dev/null 2>&1 || true
-done
-
-# 2) App Service + VNet Integration
-az webapp vnet-integration list -g "$RG" -n "$APP" -o tsv >/dev/null 2>&1 && \
-az webapp vnet-integration remove -g "$RG" -n "$APP" --vnet "$VNET" --subnet "$SN_APPSVC" 2>/dev/null || true
-az webapp stop   -g "$RG" -n "$APP" || true
-az webapp delete -g "$RG" -n "$APP" || true
-az appservice plan delete -g "$RG" -n "$PLAN" --yes || true
-
-# 3) Backup (disable + delete data)
-CONTAINER=$(az backup container list --vault-name "$RSV" -g "$RG" \
-  --backup-management-type AzureIaasVM --query "[?friendlyName=='$VM'].name" -o tsv 2>/dev/null || true)
-ITEM=$(az backup item list --vault-name "$RSV" -g "$RG" \
-  --backup-management-type AzureIaasVM --workload-type VM \
-  --query "[?properties.friendlyName=='$VM'].name" -o tsv 2>/dev/null || true)
-if [ -n "${CONTAINER:-}" ] && [ -n "${ITEM:-}" ]; then
-  az backup protection disable --vault-name "$RSV" -g "$RG" \
-    --backup-management-type AzureIaasVM --workload-type VM \
-    --container-name "$CONTAINER" --item-name "$ITEM" \
-    --delete-backup-data true --yes || true
-fi
-
-# 4) Bastion + IP público
-[ -z "$BASTION_NAME" ] && BASTION_NAME=$(az network bastion list -g "$RG" --query "[0].name" -o tsv 2>/dev/null || true)
-[ -z "$PIP_BASTION" ]  && PIP_BASTION=$(az network public-ip list -g "$RG" --query "[?contains(name,'pip-bastion')].name | [0]" -o tsv 2>/dev/null || true)
-[ -n "${BASTION_NAME:-}" ] && az network bastion delete -g "$RG" -n "$BASTION_NAME" || true
-[ -n "${PIP_BASTION:-}" ]  && az network public-ip delete -g "$RG" -n "$PIP_BASTION" || true
-
-# 5) VM, NIC e disco
-OSDISK=$(az vm show -g "$RG" -n "$VM" --query "storageProfile.osDisk.name" -o tsv 2>/dev/null || true)
-NIC=$(az vm show -g "$RG" -n "$VM" --query "networkProfile.networkInterfaces[0].id" -o tsv 2>/dev/null | awk -F/ '{print $NF}')
-az vm delete -g "$RG" -n "$VM" --yes --force-deletion || true
-[ -n "${NIC:-}" ]   && az network nic delete -g "$RG" -n "$NIC" || true
-[ -n "${OSDISK:-}" ]&& az disk delete -g "$RG" -n "$OSDISK" --yes || true
-
-# 6) VNet
-az network vnet delete -g "$RG" -n "$VNET" || true
-
-echo "Teardown concluído. Verifique o RSV e execute 'az group delete -n $RG --yes' se desejar remover o RG."
-
-### Salvar e aplicar as permissões : chmod +x destroy.sh
----
 
 ## Dicas de Troubleshooting
 
