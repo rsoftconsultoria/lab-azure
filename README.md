@@ -11,6 +11,7 @@
 - **6.1** Automation Account + Identidade Gerenciada + RBAC  
 - **6.2** Runbooks (`Stop‑Lab` / `Start‑Lab`) – **PowerShell** + teste on‑demand  
 - **6.3** Schedules (Seg–Sex **08:00/19:00**, fuso São Paulo) + vínculo aos runbooks
+- **7** Teardown do ambiente
 
 > **Nota**: Evitei a **série B** (ex.: B2s) pois foi descontinuado no catalogo de instâncias na Microsoft. Para a VM utilizei **Standard_D2as_v5** (2 vCPU / 8 GiB), opção econômica e amplamente disponível.
 
