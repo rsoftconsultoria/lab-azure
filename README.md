@@ -1,5 +1,5 @@
 
-# Azure Lab – Infraestrutura com Ubuntu + Azure CLI (End-to-end) (Projeto ClaraNet)
+# Azure Lab – Infraestrutura com Ubuntu + Azure CLI (End-to-end) 
 
 **Escopo coberto (concluído com sucesso):**
 - **1.** Preparar o Ubuntu e o Azure CLI  
