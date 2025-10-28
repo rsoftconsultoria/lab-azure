@@ -47,6 +47,10 @@ export RSV="rsv-$PREFIX"
 
 # Automação
 export AA="aa-$PREFIX"
+
+# Criar Ressource Group**
+az group create -n "$RG" -l "$LOCATION" -o table
+az configure --defaults location="$LOCATION" group="$RG"
 ```
 
 ---
@@ -65,6 +69,8 @@ az login            # ou: az login --use-device-code
 az account list -o table
 az account set --subscription "<ID ou Nome>"
 az account show -o table
+
+
 ```
 
 **Chave SSH (para VMs):**
