@@ -1,0 +1,63 @@
+trigger:
+- main
+
+variables:
+  azureSubscription: 'sc-azure-lab'   # nome da Service Connection ARM (já criada)
+  webAppName: 'app-lab001'            # seu App Service
+  packagePath: '$(Build.ArtifactStagingDirectory)/app.zip'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- checkout: self
+
+- task: NodeTool@0
+  displayName: 'Use Node 20.x'
+  inputs:
+    versionSpec: '20.x'
+
+# Compacta a pasta app/ em app.zip
+- task: ArchiveFiles@2
+  displayName: 'Archive app/ -> app.zip'
+  inputs:
+    rootFolderOrFile: 'app'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/app.zip'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish artifact'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
+
+# Deploy para WebApp Linux
+- task: AzureWebApp@1
+  displayName: 'Deploy to Azure WebApp'
+  inputs:
+    azureSubscription: '$(azureSubscription)'
+    appType: 'webAppLinux'
+    appName: '$(webAppName)'
+    package: '$(packagePath)'
+
+# Smoke test
+- script: |
+    set -e
+    APPURL="https://$(webAppName).azurewebsites.net"
+    echo "Testing $APPURL ..."
+    for i in {1..12}; do
+      echo "Try #$i"
+      echo -n "/ => "
+      curl -fsS "$APPURL" || true
+      echo -n "/backend => "
+      if curl -fsS "$APPURL/backend" | grep -q "Backend says:"; then
+        echo "OK"
+        exit 0
+      fi
+      sleep 5
+    done
+    echo "Smoke test failed"
+    exit 1
+  displayName: 'Smoke test'
